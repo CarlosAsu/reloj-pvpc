@@ -324,6 +324,7 @@
         const HOUR_DEG = 15;
 
         const API_URL = 'https://api.preciodelaluz.org/v1/prices/all?zone=PCB';
+        const CORS_PROXY = 'https://corsproxy.io/?url=';
         const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
         // ===================== ESTADO =====================
@@ -387,27 +388,39 @@
         };
 
         const fetchPrices = async () => {
-            try {
-                const res = await fetch(API_URL);
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const json = await res.json();
-                const p = parsePrices(json);
-                if (!p) throw new Error('Datos incompletos');
-                state.usingFallback = false;
-                return p;
-            } catch (err) {
-                console.warn('Usando datos de ejemplo:', err);
-                state.usingFallback = true;
-                return FALLBACK_PRICES.map((p, i) => ({ hour: i, price: p, isCheap: false }));
+            // Intento 1: llamada directa a la API
+            // Intento 2: a través de proxy CORS (necesario en GitHub Pages)
+            const urls = [API_URL, CORS_PROXY + encodeURIComponent(API_URL)];
+            for (const url of urls) {
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const json = await res.json();
+                    const p = parsePrices(json);
+                    if (!p) throw new Error('Datos incompletos');
+                    state.usingFallback = false;
+                    return p;
+                } catch (err) {
+                    console.warn(`Fallo con ${url}:`, err.message);
+                }
             }
+            // Si ambos fallan → fallback
+            console.warn('Ambos intentos fallaron, usando datos de ejemplo');
+            state.usingFallback = true;
+            return FALLBACK_PRICES.map((p, i) => ({ hour: i, price: p, isCheap: false }));
         };
 
         const fetchTomorrowPrices = async () => {
-            try {
-                const res = await fetch(API_URL);
-                if (!res.ok) throw new Error();
-                return null;
-            } catch { return null; }
+            const urls = [API_URL, CORS_PROXY + encodeURIComponent(API_URL)];
+            for (const url of urls) {
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error();
+                    // La API no tiene endpoint separado para mañana
+                    return null;
+                } catch { /* siguiente intento */ }
+            }
+            return null;
         };
 
         // ===================== SVG INIT =====================
@@ -542,13 +555,16 @@
                 if (IS_TOUCH) {
                     hit.addEventListener('touchstart', (e) => {
                         e.preventDefault();
-                        showTooltip(i, prices, e.touches[0].clientX, e.touches[0].clientY);
-                        drawArcs(prices, currentHour, isToday);
+                        // Si toca el mismo quesito, ocultar tooltip (toggle)
+                        if (state.hoveredHour === i) {
+                            hideTooltip(); state.hoveredHour = -1;
+                            drawArcs(prices, currentHour, isToday);
+                        } else {
+                            // Mostrar tooltip y dejarlo fijo (no desaparece al soltar)
+                            showTooltip(i, prices, e.touches[0].clientX, e.touches[0].clientY);
+                            drawArcs(prices, currentHour, isToday);
+                        }
                     }, { passive: false });
-                    hit.addEventListener('touchend', () => {
-                        hideTooltip(); state.hoveredHour = -1;
-                        drawArcs(prices, currentHour, isToday);
-                    });
                 } else {
                     hit.addEventListener('mouseenter', (e) => showTooltip(i, prices, e.clientX, e.clientY));
                     hit.addEventListener('mousemove', (e) => positionTooltip(e.clientX, e.clientY));
