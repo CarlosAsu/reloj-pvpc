@@ -19,7 +19,6 @@
     </noscript>
 
     <style>
-        /* ===================== RESET Y VARIABLES ===================== */
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
@@ -40,199 +39,126 @@
             --clock-size: min(92vw, 560px);
         }
 
-        /* ===================== CUERPO ===================== */
         html { height: 100%; -webkit-text-size-adjust: 100%; }
         body {
             font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
             background: linear-gradient(160deg, var(--bg-base) 0%, var(--bg-deep) 50%, #0c0a1a 100%);
             color: var(--text-primary);
-            min-height: 100%;
-            min-height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            min-height: 100%; min-height: 100dvh;
+            display: flex; flex-direction: column; align-items: center;
             padding: 1rem 0.75rem 2.5rem;
             overflow-x: hidden;
             -webkit-tap-highlight-color: transparent;
         }
 
-        /* ===================== HEADER ===================== */
         .header { text-align: center; margin-bottom: 0.6rem; }
         .header h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.02em; }
         .header h1 span { color: var(--accent); }
         .header .subtitle { font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem; }
 
-        /* ===================== AVISO FALLBACK ===================== */
         .fallback-notice {
             display: none;
-            background: rgba(234,179,8,0.12);
-            border: 1px solid rgba(234,179,8,0.3);
-            color: var(--yellow);
-            padding: 0.4rem 0.8rem;
-            border-radius: var(--radius);
-            font-size: 0.7rem;
-            margin-bottom: 0.6rem;
-            text-align: center;
-            max-width: 400px;
-            width: 90%;
+            background: rgba(234,179,8,0.12); border: 1px solid rgba(234,179,8,0.3);
+            color: var(--yellow); padding: 0.4rem 0.8rem; border-radius: var(--radius);
+            font-size: 0.7rem; margin-bottom: 0.6rem; text-align: center;
+            max-width: 400px; width: 90%;
         }
         .fallback-notice.visible { display: block; }
 
-        /* ===================== RELOJ ===================== */
         .clock-wrapper {
             position: relative;
-            width: var(--clock-size);
-            height: var(--clock-size);
+            width: var(--clock-size); height: var(--clock-size);
             flex-shrink: 0;
         }
         .clock-svg {
-            width: 100%;
-            height: 100%;
+            width: 100%; height: 100%;
             filter: drop-shadow(0 0 30px rgba(56,189,248,0.05));
             touch-action: none;
         }
 
-        /* ===================== TOOLTIP ===================== */
+        /* --- Tooltip --- */
         .tooltip {
-            position: fixed;
-            pointer-events: none;
+            position: fixed; pointer-events: none;
             background: rgba(15, 23, 42, 0.96);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(148,163,184,0.2);
-            border-radius: 10px;
-            padding: 0.55rem 0.8rem;
-            font-size: 0.78rem;
-            line-height: 1.5;
-            color: var(--text-primary);
-            opacity: 0;
-            transition: opacity 0.15s ease;
-            z-index: 100;
-            white-space: nowrap;
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(148,163,184,0.2); border-radius: 10px;
+            padding: 0.55rem 0.8rem; font-size: 0.78rem; line-height: 1.5;
+            color: var(--text-primary); opacity: 0; transition: opacity 0.15s ease;
+            z-index: 100; white-space: nowrap;
             box-shadow: 0 8px 32px rgba(0,0,0,0.5);
         }
         .tooltip.visible { opacity: 1; }
         .tooltip .tt-hour { font-weight: 600; font-size: 0.85rem; }
         .tooltip .tt-price { font-weight: 700; font-size: 0.95rem; margin: 0.15rem 0; }
         .tooltip .tt-badge {
-            display: inline-block;
-            padding: 0.12rem 0.45rem;
-            border-radius: 6px;
-            font-size: 0.6rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
+            display: inline-block; padding: 0.12rem 0.45rem; border-radius: 6px;
+            font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
         }
-        /* En móvil: tooltip fijo centrado abajo */
         .tooltip--mobile {
             position: fixed;
-            left: 50% !important;
-            bottom: 12px !important;
-            top: auto !important;
-            transform: translateX(-50%);
-            text-align: center;
+            left: 50% !important; bottom: 12px !important; top: auto !important;
+            transform: translateX(-50%); text-align: center;
         }
 
-        /* ===================== BOTÓN HOY / MAÑANA ===================== */
+        /* --- Botón --- */
         .toggle-wrap { margin-top: 0.8rem; display: flex; justify-content: center; }
         .toggle-btn {
-            background: var(--bg-surface);
-            border: 1px solid rgba(148,163,184,0.15);
-            color: var(--text-primary);
-            padding: 0.55rem 1.5rem;
-            border-radius: 50px;
-            font-family: inherit;
-            font-size: 0.82rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all var(--transition);
+            background: var(--bg-surface); border: 1px solid rgba(148,163,184,0.15);
+            color: var(--text-primary); padding: 0.55rem 1.5rem; border-radius: 50px;
+            font-family: inherit; font-size: 0.82rem; font-weight: 600;
+            cursor: pointer; transition: all var(--transition);
             -webkit-user-select: none; user-select: none;
         }
-        .toggle-btn:hover {
-            background: var(--bg-elevated);
-            border-color: var(--accent);
-            box-shadow: 0 0 20px rgba(56,189,248,0.12);
-        }
+        .toggle-btn:hover { background: var(--bg-elevated); border-color: var(--accent); box-shadow: 0 0 20px rgba(56,189,248,0.12); }
         .toggle-btn:active { transform: scale(0.96); }
 
-        /* ===================== MENSAJE MAÑANA ===================== */
+        /* --- Mensaje mañana --- */
         .tomorrow-msg {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(15,23,42,0.88);
-            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-            border-radius: var(--radius);
-            padding: 1rem 1.3rem;
-            text-align: center;
-            font-size: 0.8rem;
-            color: var(--text-secondary);
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(15,23,42,0.88); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            border-radius: var(--radius); padding: 1rem 1.3rem; text-align: center;
+            font-size: 0.8rem; color: var(--text-secondary);
             border: 1px solid rgba(148,163,184,0.12);
-            opacity: 0; pointer-events: none;
-            transition: opacity 0.4s ease;
+            opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
             max-width: 260px; line-height: 1.5;
         }
         .tomorrow-msg.visible { opacity: 1; }
         .tomorrow-msg .tm-icon { font-size: 1.5rem; display: block; margin-bottom: 0.4rem; }
 
-        /* ===================== PANEL INFORMATIVO ===================== */
+        /* --- Panel info --- */
         .info-panel {
-            margin-top: 1rem;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-            width: var(--clock-size);
-            max-width: 560px;
+            margin-top: 1rem; display: grid; grid-template-columns: 1fr 1fr;
+            gap: 0.5rem; width: var(--clock-size); max-width: 560px;
         }
         .info-card {
-            background: var(--bg-surface);
-            border: 1px solid rgba(148,163,184,0.08);
-            border-radius: var(--radius);
-            padding: 0.6rem 0.5rem;
-            text-align: center;
-            transition: border-color var(--transition);
-            overflow: hidden;
+            background: var(--bg-surface); border: 1px solid rgba(148,163,184,0.08);
+            border-radius: var(--radius); padding: 0.6rem 0.5rem; text-align: center;
+            transition: border-color var(--transition); overflow: hidden;
         }
         .info-card:hover { border-color: rgba(148,163,184,0.2); }
-        .info-card .ic-label {
-            font-size: 0.58rem; text-transform: uppercase;
-            letter-spacing: 0.05em; color: var(--text-muted);
-            font-weight: 600; margin-bottom: 0.2rem;
-        }
+        .info-card .ic-label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); font-weight: 600; margin-bottom: 0.2rem; }
         .info-card .ic-value { font-size: 0.95rem; font-weight: 700; letter-spacing: -0.02em; }
         .info-card .ic-sub { font-size: 0.62rem; color: var(--text-secondary); margin-top: 0.1rem; }
 
-        /* ===================== FOOTER ===================== */
-        .footer {
-            margin-top: 1.5rem; font-size: 0.6rem;
-            color: var(--text-muted); text-align: center; padding: 0 1rem;
-        }
+        .footer { margin-top: 1.5rem; font-size: 0.6rem; color: var(--text-muted); text-align: center; padding: 0 1rem; }
         .footer a { color: var(--accent); text-decoration: none; }
         .footer a:hover { text-decoration: underline; }
 
-        /* ===================== ANIMACIONES ===================== */
-        @keyframes pulse-glow {
-            0%, 100% { opacity: 0.45; }
-            50% { opacity: 1; }
-        }
-        @keyframes fade-in {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes pulse-glow { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .info-panel { animation: fade-in 0.5s ease 0.15s both; }
 
-        /* ===================== TABLET (≥ 600px) ===================== */
+        /* --- Tablet --- */
         @media (min-width: 600px) {
             :root { --clock-size: min(70vw, 520px); }
             body { padding: 1.5rem 1.5rem 3rem; }
             .header h1 { font-size: 1.4rem; }
-            .header .subtitle { font-size: 0.8rem; }
             .info-panel { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.65rem; }
             .info-card { padding: 0.7rem 0.8rem; }
             .info-card .ic-value { font-size: 1.05rem; }
-            .info-card .ic-label { font-size: 0.62rem; }
         }
 
-        /* ===================== DESKTOP (≥ 960px) ===================== */
+        /* --- Desktop --- */
         @media (min-width: 960px) {
             :root { --clock-size: 520px; }
             body { padding: 2rem 2rem 3rem; }
@@ -241,10 +167,9 @@
             .info-panel { grid-template-columns: repeat(5, 1fr); gap: 0.75rem; width: 600px; }
             .info-card .ic-value { font-size: 1.1rem; }
             .toggle-wrap { margin-top: 1.2rem; }
-            .footer { margin-top: 2rem; }
         }
 
-        /* ===================== MÓVILES MUY PEQUEÑOS (< 360px) ===================== */
+        /* --- Muy pequeño --- */
         @media (max-width: 359px) {
             :root { --clock-size: 96vw; }
             body { padding: 0.5rem 0.4rem 2rem; }
@@ -254,20 +179,13 @@
             .info-card .ic-value { font-size: 0.82rem; }
         }
 
-        /* ===================== LANDSCAPE MÓVIL ===================== */
+        /* --- Landscape móvil --- */
         @media (max-height: 500px) and (orientation: landscape) {
             :root { --clock-size: min(70vh, 360px); }
-            body {
-                flex-direction: row; flex-wrap: wrap;
-                justify-content: center; align-items: flex-start;
-                gap: 1rem; padding: 0.5rem 1rem;
-            }
+            body { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 1rem; padding: 0.5rem 1rem; }
             .header { width: 100%; margin-bottom: 0.3rem; }
             .toggle-wrap { width: 100%; margin-top: 0.3rem; }
-            .info-panel {
-                width: auto; flex: 1; min-width: 200px; max-width: 320px;
-                margin-top: 0; grid-template-columns: 1fr 1fr;
-            }
+            .info-panel { width: auto; flex: 1; min-width: 200px; max-width: 320px; margin-top: 0; grid-template-columns: 1fr 1fr; }
         }
     </style>
 </head>
@@ -303,13 +221,10 @@
     </footer>
 
     <script>
-    /* ==========================================================
-       RELOJ PVPC 24H — JavaScript
-       ========================================================== */
     (() => {
         'use strict';
 
-        // ===================== CONSTANTES SVG =====================
+        // ===================== CONSTANTES =====================
         const SVG_NS = 'http://www.w3.org/2000/svg';
         const CX = 300, CY = 300;
         const R_OUTER = 270;
@@ -323,8 +238,8 @@
         const ARC_GAP_DEG = 1.4;
         const HOUR_DEG = 15;
 
-        const API_URL = 'https://api.preciodelaluz.org/v1/prices/all?zone=PCB';
-        const CORS_PROXY = 'https://corsproxy.io/?url=';
+        // API principal y proxies CORS de respaldo
+        const API_BASE = 'https://api.preciodelaluz.org/v1/prices/all?zone=PCB';
         const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
 
         // ===================== ESTADO =====================
@@ -376,7 +291,7 @@
             return el;
         };
 
-        // ===================== DATOS =====================
+        // ===================== MÓDULO DE DATOS =====================
         const parsePrices = (json) => {
             const prices = [];
             for (let h = 0; h < 24; h++) {
@@ -387,39 +302,49 @@
             return prices.length === 24 ? prices : null;
         };
 
+        /**
+         * Intenta obtener los precios probando varias rutas:
+         * 1. Llamada directa a la API
+         * 2. A través de allorigins.win (proxy CORS gratuito, devuelve raw)
+         * 3. A través de corsproxy.io
+         * Si todas fallan → datos de ejemplo
+         */
         const fetchPrices = async () => {
-            // Intento 1: llamada directa a la API
-            // Intento 2: a través de proxy CORS (necesario en GitHub Pages)
-            const urls = [API_URL, CORS_PROXY + encodeURIComponent(API_URL)];
-            for (const url of urls) {
+            const urls = [
+                // 1) Directo (funciona si la API tiene CORS habilitado)
+                { url: API_BASE, parse: (r) => r.json() },
+                // 2) allorigins.win — devuelve el contenido raw directamente
+                { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(API_BASE)}`, parse: (r) => r.json() },
+                // 3) corsproxy.io
+                { url: `https://corsproxy.io/?url=${encodeURIComponent(API_BASE)}`, parse: (r) => r.json() },
+            ];
+
+            for (const { url, parse } of urls) {
                 try {
-                    const res = await fetch(url);
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 6000); // 6s timeout
+                    const res = await fetch(url, { signal: controller.signal });
+                    clearTimeout(timeout);
                     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                    const json = await res.json();
+                    const json = await parse(res);
                     const p = parsePrices(json);
                     if (!p) throw new Error('Datos incompletos');
+                    console.log('✅ Precios obtenidos desde:', url);
                     state.usingFallback = false;
                     return p;
                 } catch (err) {
-                    console.warn(`Fallo con ${url}:`, err.message);
+                    console.warn(`❌ Fallo con: ${url} →`, err.message);
                 }
             }
-            // Si ambos fallan → fallback
-            console.warn('Ambos intentos fallaron, usando datos de ejemplo');
+
+            // Si todo falla → fallback
+            console.warn('⚠️ Todos los intentos fallaron, usando datos de ejemplo');
             state.usingFallback = true;
             return FALLBACK_PRICES.map((p, i) => ({ hour: i, price: p, isCheap: false }));
         };
 
         const fetchTomorrowPrices = async () => {
-            const urls = [API_URL, CORS_PROXY + encodeURIComponent(API_URL)];
-            for (const url of urls) {
-                try {
-                    const res = await fetch(url);
-                    if (!res.ok) throw new Error();
-                    // La API no tiene endpoint separado para mañana
-                    return null;
-                } catch { /* siguiente intento */ }
-            }
+            // La API pública no tiene endpoint separado para mañana
             return null;
         };
 
@@ -430,13 +355,11 @@
             svg.innerHTML = '';
             const defs = svgEl('defs');
 
-            // Gradiente fondo
             const bg = svgEl('radialGradient', { id: 'bgGrad', cx: '50%', cy: '45%', r: '55%' });
             bg.appendChild(svgEl('stop', { offset: '0%', 'stop-color': '#1e293b' }));
             bg.appendChild(svgEl('stop', { offset: '100%', 'stop-color': '#0b1120' }));
             defs.appendChild(bg);
 
-            // Filtro glow
             const gf = svgEl('filter', { id: 'glowCurrent', x: '-50%', y: '-50%', width: '200%', height: '200%' });
             gf.appendChild(svgEl('feGaussianBlur', { stdDeviation: '5', result: 'blur' }));
             const m = svgEl('feMerge');
@@ -445,20 +368,17 @@
             gf.appendChild(m);
             defs.appendChild(gf);
 
-            // Sombra manecillas
             const hs = svgEl('filter', { id: 'handShadow', x: '-20%', y: '-20%', width: '140%', height: '140%' });
             hs.appendChild(svgEl('feDropShadow', { dx: '1', dy: '2', stdDeviation: '2', 'flood-color': 'rgba(0,0,0,0.5)' }));
             defs.appendChild(hs);
 
             svg.appendChild(defs);
 
-            // Esfera
             svg.appendChild(svgEl('circle', {
                 cx: CX, cy: CY, r: R_OUTER,
                 fill: 'url(#bgGrad)', stroke: 'rgba(148,163,184,0.12)', 'stroke-width': '1.5'
             }));
 
-            // Capas
             for (const n of ['arcs', 'arcHighlight', 'ticks', 'numbers', 'hands', 'center', 'hit']) {
                 const g = svgEl('g', { id: `l-${n}` });
                 svg.appendChild(g);
@@ -546,28 +466,30 @@
                     }));
                 }
 
-                // Hit area (más grande para touch fácil)
                 const hit = svgEl('path', {
                     d: wedgePath(aS, aE, R_WEDGE_MAX + 20),
                     fill: 'transparent', cursor: 'pointer',
                 });
 
                 if (IS_TOUCH) {
+                    // MÓVIL: tap muestra tooltip y se queda. Tap mismo cierra. Tap otro cambia.
                     hit.addEventListener('touchstart', (e) => {
                         e.preventDefault();
-                        // Si toca el mismo quesito, ocultar tooltip (toggle)
+                        e.stopPropagation();
                         if (state.hoveredHour === i) {
-                            hideTooltip(); state.hoveredHour = -1;
-                            drawArcs(prices, currentHour, isToday);
+                            // Tocar el mismo → cerrar
+                            hideTooltip();
+                            state.hoveredHour = -1;
                         } else {
-                            // Mostrar tooltip y dejarlo fijo (no desaparece al soltar)
-                            showTooltip(i, prices, e.touches[0].clientX, e.touches[0].clientY);
-                            drawArcs(prices, currentHour, isToday);
+                            // Tocar otro → mostrar y dejar fijo
+                            showTooltip(i, prices);
                         }
+                        drawArcs(prices, currentHour, isToday);
                     }, { passive: false });
                 } else {
-                    hit.addEventListener('mouseenter', (e) => showTooltip(i, prices, e.clientX, e.clientY));
-                    hit.addEventListener('mousemove', (e) => positionTooltip(e.clientX, e.clientY));
+                    // DESKTOP: hover normal
+                    hit.addEventListener('mouseenter', (e) => { showTooltip(i, prices); positionTooltipDesktop(e.clientX, e.clientY); });
+                    hit.addEventListener('mousemove', (e) => positionTooltipDesktop(e.clientX, e.clientY));
                     hit.addEventListener('mouseleave', () => {
                         hideTooltip(); state.hoveredHour = -1;
                         drawArcs(prices, currentHour, isToday);
@@ -604,7 +526,7 @@
         };
 
         // ===================== TOOLTIP =====================
-        const showTooltip = (hour, prices, cx, cy) => {
+        const showTooltip = (hour, prices) => {
             state.hoveredHour = hour;
             const p = prices[hour];
             const vals = prices.map(x => x.price);
@@ -621,13 +543,16 @@
                 <span class="tt-badge" style="color:${bC};background:${bBg}">${badge}</span>`;
             tooltipEl.classList.add('visible');
 
-            if (IS_TOUCH) { tooltipEl.classList.add('tooltip--mobile'); }
-            else { tooltipEl.classList.remove('tooltip--mobile'); positionTooltip(cx, cy); }
+            if (IS_TOUCH) {
+                tooltipEl.classList.add('tooltip--mobile');
+            } else {
+                tooltipEl.classList.remove('tooltip--mobile');
+            }
         };
 
         const hideTooltip = () => { tooltipEl.classList.remove('visible', 'tooltip--mobile'); };
 
-        const positionTooltip = (cx, cy) => {
+        const positionTooltipDesktop = (cx, cy) => {
             const r = tooltipEl.getBoundingClientRect(), pad = 14;
             let l = cx + pad, t = cy - r.height - pad;
             if (l + r.width > window.innerWidth - 10) l = cx - r.width - pad;
@@ -636,11 +561,12 @@
             tooltipEl.style.top = t + 'px';
         };
 
-        // Cerrar tooltip al tocar fuera (móvil)
+        // Cerrar tooltip al tocar fuera del SVG (móvil)
         if (IS_TOUCH) {
             document.addEventListener('touchstart', (e) => {
-                if (!svg.contains(e.target)) {
-                    hideTooltip(); state.hoveredHour = -1;
+                if (!svg.contains(e.target) && state.hoveredHour !== -1) {
+                    hideTooltip();
+                    state.hoveredHour = -1;
                     const now = madridNow();
                     const p = state.mode === 'today' ? state.todayPrices : state.tomorrowPrices;
                     if (p) drawArcs(p, now.getHours(), state.mode === 'today');
@@ -696,7 +622,7 @@
             infoPanel.innerHTML = html;
         };
 
-        // ===================== TOGGLE HOY/MAÑANA =====================
+        // ===================== TOGGLE =====================
         toggleBtn.addEventListener('click', async () => {
             if (state.mode === 'today') {
                 state.mode = 'tomorrow';
