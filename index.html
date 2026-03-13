@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="Precio de la electricidad PVPC en España — reloj 24h con tarifas por franja horaria.">
+<meta name="theme-color" content="#0b1120">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Reloj PVPC — Precio de la luz en España hoy</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --sz:min(92vw,480px);
+  --bg:#0b1120;
+  --cbg:rgba(255,255,255,.04);
+  --cborder:rgba(255,255,255,.07);
+  --text:#e2e8f0;
+  --muted:#64748b;
+  --acc:#38bdf8;
+  --gr:rgb(34,197,94);
+  --ye:rgb(234,179,8);
+  --re:rgb(239,68,68);
+  --tth:108px;
+  --font:'Inter','Segoe UI',system-ui,sans-serif;
+}
+@media(min-width:600px){:root{--sz:min(68vw,520px)}}
+@media(min-width:960px){:root{--sz:520px}}
+@media(max-width:359px){:root{--sz:96vw}}
+
+html,body{width:100%;min-height:100dvh;background:var(--bg);
+  background-image:
+    radial-gradient(ellipse at 25% 15%,rgba(56,189,248,.05) 0%,transparent 55%),
+    radial-gradient(ellipse at 80% 75%,rgba(99,102,241,.05) 0%,transparent 55%);
+  color:var(--text);font-family:var(--font);-webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;overflow-x:hidden}
+body{display:flex;flex-direction:column;align-items:center;padding:16px 12px 0}
+
+#app{width:100%;max-width:700px;display:flex;flex-direction:column;align-items:center;gap:16px}
+
+#api-warn{display:none;background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.3);
+  color:rgb(234,179,8);font-size:12px;font-weight:500;padding:6px 16px;
+  border-radius:20px;letter-spacing:.02em}
+
+.cw{position:relative;width:var(--sz);height:var(--sz);flex-shrink:0}
+#svg{width:100%;height:100%;display:block;touch-action:none;
+  user-select:none;-webkit-user-select:none;overflow:visible}
+
+#tmrovl{display:none;position:absolute;inset:0;background:rgba(11,17,32,.83);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);border-radius:50%;
+  align-items:center;justify-content:center;text-align:center;padding:32px;
+  font-size:clamp(13px,3.5vw,15px);font-weight:500;line-height:1.65;
+  color:rgba(226,232,240,.85)}
+
+.mbtns{display:flex;background:rgba(255,255,255,.04);border:1px solid var(--cborder);
+  border-radius:24px;padding:3px;gap:2px}
+.bm{background:transparent;border:none;color:var(--muted);font-family:var(--font);
+  font-size:13px;font-weight:500;padding:7px 22px;border-radius:20px;cursor:pointer;
+  transition:all .2s ease;letter-spacing:.02em}
+.bm.on{background:rgba(56,189,248,.15);color:var(--acc);box-shadow:0 0 0 1px rgba(56,189,248,.2)}
+.bm:not(.on):hover{color:var(--text);background:rgba(255,255,255,.04)}
+
+.ip{width:100%;display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-bottom:12px}
+.card{background:var(--cbg);border:1px solid var(--cborder);border-radius:12px;
+  padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.cf{grid-column:1/-1;align-items:center;padding:10px 16px}
+.lbl{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.rng{font-size:11px;color:rgba(148,163,184,.8)}
+.prc{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.dtx{font-size:13px;font-weight:500;color:var(--text);text-transform:capitalize}
+.cg{color:var(--gr)}.cy{color:var(--ye)}.cr{color:var(--re)}
+@media(min-width:600px){.ip{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}}
+@media(min-width:960px){.ip{grid-template-columns:2fr 1fr 1fr 1fr 1fr}.cf{grid-column:1}}
+
+/* Desktop tooltip */
+#ttd{display:none;position:fixed;z-index:1000;pointer-events:none;
+  background:rgba(15,23,42,.97);border:1px solid rgba(56,189,248,.2);
+  border-radius:10px;padding:10px 14px;min-width:160px;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+
+/* Mobile tooltip — fixed bottom */
+#ttm{display:none;position:fixed;bottom:0;left:0;right:0;z-index:1000;
+  background:rgba(13,20,38,.98);border-top:1px solid rgba(56,189,248,.14);
+  padding:14px 20px 20px;min-height:var(--tth);text-align:center;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  transform:translateY(100%);transition:transform .28s cubic-bezier(.4,0,.2,1)}
+#ttm.open{transform:translateY(0)}
+
+.ttr{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.06em;
+  text-transform:uppercase;margin-bottom:3px}
+.ttp{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.2}
+#ttd .ttp{font-size:16px}
+.ttbadge{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.1em;
+  padding:2px 8px;border-radius:10px;margin-top:4px}
+.bc{background:rgba(34,197,94,.15);color:var(--gr)}
+.bm2{background:rgba(234,179,8,.15);color:var(--ye)}
+.be{background:rgba(239,68,68,.15);color:var(--re)}
+.hint{color:var(--muted);font-size:12px;display:flex;align-items:center;
+  justify-content:center;gap:6px;padding-top:4px}
+.hint::before{content:'👆';font-size:14px}
+
+@keyframes wpulse{0%,100%{opacity:.85}50%{opacity:1}}
+.wnow{animation:wpulse 2s ease-in-out infinite}
+@keyframes shimmer{0%{opacity:.3}50%{opacity:.7}100%{opacity:.3}}
+.sk{animation:shimmer 1.5s infinite;background:rgba(255,255,255,.06);border-radius:4px;height:14px;width:80%}
+
+@media(max-height:500px) and (orientation:landscape){
+  body{padding:8px 12px 0}
+  #app{flex-direction:row;flex-wrap:wrap;align-items:flex-start;gap:12px}
+  .cw{--sz:min(44vh,380px)}
+  .ip{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="api-warn">⚠️ Mostrando datos de ejemplo</div>
+
+  <div class="cw">
+    <svg id="svg" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="bgG" cx="50%" cy="45%" r="55%">
+          <stop offset="0%"   stop-color="#1e2d42"/>
+          <stop offset="100%" stop-color="#0b1120"/>
+        </radialGradient>
+        <!-- Glow for current hour wedge only -->
+        <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+
+      <!-- Face -->
+      <circle cx="300" cy="300" r="273" fill="url(#bgG)" stroke="rgba(148,163,184,.08)" stroke-width="1"/>
+      <circle cx="300" cy="300" r="273" fill="none" stroke="rgba(56,189,248,.05)" stroke-width="18"/>
+
+      <!-- Wedges layer -->
+      <g id="lw"></g>
+
+      <!-- Inner mask (hides wedge cores) -->
+      <circle id="cmask" cx="300" cy="300" r="15" fill="#0b1120"/>
+
+      <!-- Marks + labels layer -->
+      <g id="lm"></g>
+
+      <!-- ── HANDS ── drawn as <path> elements, d updated by JS ── -->
+      <!-- Each path: M tail_tip L center L arm_tip -->
+      <!-- No filter on individual paths — shadow drawn as blurred copy below -->
+      <g id="lhands">
+        <!-- Hour hand shadow (blurred, drawn first) -->
+        <path id="hr-sh"  fill="none" stroke="rgba(0,0,0,.55)" stroke-width="7"
+              stroke-linecap="round" opacity="0.6"
+              style="filter:blur(3px)" d="M300,335 L300,300 L300,148"/>
+        <!-- Hour hand -->
+        <path id="hr"  fill="none" stroke="#dde5f0" stroke-width="5.5"
+              stroke-linecap="round" d="M300,335 L300,300 L300,148"/>
+
+        <!-- Minute hand shadow -->
+        <path id="mn-sh" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="4.5"
+              stroke-linecap="round" opacity="0.6"
+              style="filter:blur(2px)" d="M300,325 L300,300 L300,116"/>
+        <!-- Minute hand -->
+        <path id="mn"  fill="none" stroke="rgba(220,232,245,.88)" stroke-width="2.8"
+              stroke-linecap="round" d="M300,325 L300,300 L300,116"/>
+
+        <!-- Second hand (no shadow needed) -->
+        <path id="sc"  fill="none" stroke="#ef4444" stroke-width="1.3"
+              stroke-linecap="round" d="M300,322 L300,300 L300,110"/>
+
+        <!-- Center cap -->
+        <circle cx="300" cy="300" r="6.5" fill="#0f172a" stroke="#38bdf8" stroke-width="2.5"/>
+        <circle cx="300" cy="300" r="2.5" fill="#38bdf8"/>
+      </g>
+    </svg>
+    <div id="tmrovl">
+      Los precios de mañana se publican a partir de las&nbsp;<strong>20:15h</strong>&nbsp;aproximadamente.
+    </div>
+  </div>
+
+  <div class="mbtns">
+    <button id="bToday" class="bm on">Hoy</button>
+    <button id="bTomr"  class="bm">Mañana</button>
+  </div>
+
+  <div class="ip">
+    <div id="pDate"  class="card cf"><span class="dtx sk">&nbsp;</span></div>
+    <div id="pCheap" class="card"><span class="lbl">Hora más barata</span><span class="rng sk">&nbsp;</span><span class="prc cg sk">&nbsp;</span></div>
+    <div id="pExp"   class="card"><span class="lbl">Hora más cara</span><span class="rng sk">&nbsp;</span><span class="prc cr sk">&nbsp;</span></div>
+    <div id="pAvg"   class="card"><span class="lbl">Precio medio</span><span class="prc cy sk">&nbsp;</span></div>
+    <div id="pCur"   class="card"><span class="lbl">Precio actual</span><span class="rng sk">&nbsp;</span><span class="prc sk">&nbsp;</span></div>
+  </div>
+</div>
+
+<div id="ttd"></div>
+<div id="ttm"><div class="hint">Toca una franja horaria para ver su precio</div></div>
+
+<noscript><p style="color:#94a3b8;font-family:sans-serif;padding:2rem;text-align:center">Esta aplicación requiere JavaScript.</p></noscript>
+
+<script>
+(function(){
+'use strict';
+
+/* ── CONSTANTS ───────────────────────────────────────────────── */
+const CX=300,CY=300;
+const R_IN=16, R_MIN=68, R_MAX=210, R_HIT=R_MAX+22;
+const R_TImi=220,R_TOmi=228, R_TIma=213,R_TOma=235, R_LBL=252;
+const GAP=1.4, WDEG=15-GAP;
+const T=8000; // fetch timeout ms
+
+const STOPS=[
+  [0,   [34,197,94]],
+  [.33, [234,179,8]],
+  [.66, [249,115,22]],
+  [1,   [239,68,68]],
+];
+
+// API + 4 proxy strategies (different services for resilience)
+const APIURL='https://api.preciodelaluz.org/v1/prices/all?zone=PCB';
+const ENC=encodeURIComponent(APIURL);
+const SOURCES=[
+  ()=> jFetch(APIURL),
+  ()=> jFetch(`https://api.allorigins.win/raw?url=${ENC}`),
+  ()=> jFetch(`https://corsproxy.io/?url=${ENC}`),
+  ()=> jFetch(`https://thingproxy.freeboard.io/fetch/${APIURL}`),
+  ()=> jFetch(`https://api.codetabs.com/v1/proxy?quest=${APIURL}`),
+];
+
+/* ── STATE ───────────────────────────────────────────────────── */
+const S={prices:null,stats:null,mode:'today',active:null,lastH:-1};
+
+/* ── DOM ─────────────────────────────────────────────────────── */
+const $=id=>document.getElementById(id);
+const svgEl=$('svg'), lW=$('lw'), lM=$('lm');
+const elHr=$('hr'), elHrSh=$('hr-sh');
+const elMn=$('mn'), elMnSh=$('mn-sh');
+const elSc=$('sc');
+const lHands=$('lhands');
+const ttD=$('ttd'), ttM=$('ttm');
+const bToday=$('bToday'), bTomr=$('bTomr');
+const pDate=$('pDate'),pCheap=$('pCheap'),pExp=$('pExp'),pAvg=$('pAvg'),pCur=$('pCur');
+const apiWarn=$('api-warn'), tmrOvl=$('tmrovl');
+
+/* ── DEVICE ──────────────────────────────────────────────────── */
+const TOUCH=('ontouchstart' in window)||(navigator.maxTouchPoints>0);
+if(TOUCH){
+  ttM.style.display='block';
+  const th=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--tth'))||108;
+  document.body.style.paddingBottom=(th+16)+'px';
+}
+
+/* ── MATHS ───────────────────────────────────────────────────── */
+const R=d=>(d-90)*Math.PI/180; // SVG angle: 0° = top, clockwise
+const px=(r,d)=>({x:+(CX+r*Math.cos(R(d))).toFixed(2),y:+(CY+r*Math.sin(R(d))).toFixed(2)});
+const f=n=>n.toFixed(2);
+
+// Build an M…L…L path string for a hand: tail tip → center → arm tip
+function handPath(deg,armLen,tailLen){
+  const arm =px(armLen,  deg);
+  const tail=px(tailLen, deg+180); // opposite direction for tail
+  return `M${tail.x},${tail.y} L${CX},${CY} L${arm.x},${arm.y}`;
+}
+
+function setHand(elMain,elShadow,deg,armLen,tailLen){
+  const d=handPath(deg,armLen,tailLen);
+  elMain.setAttribute('d',d);
+  if(elShadow) elShadow.setAttribute('d',d);
+}
+
+function lerp(ratio){
+  for(let i=0;i<STOPS.length-1;i++){
+    const[t0,c0]=STOPS[i],[t1,c1]=STOPS[i+1];
+    if(ratio<=t1){
+      const t=(ratio-t0)/(t1-t0);
+      return c0.map((v,j)=>Math.round(v+t*(c1[j]-v)));
+    }
+  }
+  return STOPS[STOPS.length-1][1];
+}
+const rat=(p,mn,mx)=>mx>mn?Math.max(0,Math.min(1,(p-mn)/(mx-mn))):0;
+const fmt5=p=>p.toFixed(5)+' €/kWh';
+const fmtR=h=>`${pad(h)}:00 – ${pad((h+1)%24)}:00`;
+const pad=n=>String(n).padStart(2,'0');
+function badge(r){
+  if(r<0.34)return['BARATA','bc'];
+  if(r<0.66)return['MEDIA','bm2'];
+  return['CARA','be'];
+}
+
+/* ── FETCH ───────────────────────────────────────────────────── */
+// Promise.race with manual timeout — no AbortController (avoids postMessage clone bug)
+function jFetch(url){
+  const p=fetch(url,{method:'GET'})
+    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});
+  const t=new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),T));
+  return Promise.race([p,t]);
+}
+
+async function loadPrices(){
+  for(let i=0;i<SOURCES.length;i++){
+    try{
+      const d=await SOURCES[i]();
+      // basic sanity check — must have at least 20 keys
+      if(typeof d!=='object'||Object.keys(d).length<20) throw new Error('bad data');
+      console.log(`✅ Datos cargados (fuente ${i+1})`);
+      return parseApi(d);
+    }catch(e){
+      console.log(`❌ Fuente ${i+1} fallida:`,e.message);
+    }
+  }
+  console.log('⚠️ Usando datos de ejemplo');
+  apiWarn.style.display='block';
+  return fallback();
+}
+
+function parseApi(data){
+  return Array.from({length:24},(_,h)=>{
+    const k=`${pad(h)}-${pad(h+1)}`;
+    const k2=`${h}-${h+1}`;
+    const e=data[k]||data[k2]||null;
+    return{hour:h,price:e?e.price/1000:0.1};
+  });
+}
+
+function fallback(){
+  return[42,38,35,33,34,40,62,92,115,122,118,114,
+         108,103,98,95,100,118,138,148,130,112,88,60]
+    .map((v,h)=>({hour:h,price:v/1000}));
+}
+
+function calcStats(prices){
+  const v=prices.map(p=>p.price);
+  const mn=Math.min(...v),mx=Math.max(...v);
+  return{min:mn,max:mx,avg:v.reduce((a,b)=>a+b)/v.length,
+    cheapIdx:v.indexOf(mn),expIdx:v.indexOf(mx)};
+}
+
+/* ── SVG HELPERS ─────────────────────────────────────────────── */
+function svgN(tag,a){
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  for(const[k,v]of Object.entries(a))el.setAttribute(k,v);
+  return el;
+}
+function wPath(rIn,rOut,s,e){
+  const a=px(rIn,s),b=px(rOut,s),c=px(rOut,e),d2=px(rIn,e);
+  const lg=(e-s)>180?1:0;
+  return`M${f(a.x)} ${f(a.y)} L${f(b.x)} ${f(b.y)} A${rOut} ${rOut} 0 ${lg} 1 ${f(c.x)} ${f(c.y)} L${f(d2.x)} ${f(d2.y)} A${rIn} ${rIn} 0 ${lg} 0 ${f(a.x)} ${f(a.y)} Z`;
+}
+
+/* ── BUILD MARKS ─────────────────────────────────────────────── */
+function buildMarks(){
+  lM.innerHTML='';
+  for(let h=0;h<24;h++){
+    const maj=h%6===0,ang=-90+h*15;
+    const ri=maj?R_TIma:R_TImi,ro=maj?R_TOma:R_TOmi;
+    const a1=px(ri,ang),a2=px(ro,ang);
+    lM.appendChild(svgN('line',{
+      x1:f(a1.x),y1:f(a1.y),x2:f(a2.x),y2:f(a2.y),
+      stroke:maj?'rgba(148,163,184,.85)':'rgba(148,163,184,.32)',
+      'stroke-width':maj?2.2:1,'stroke-linecap':'round'}));
+    const lp=px(R_LBL,ang);
+    const t=svgN('text',{x:f(lp.x),y:f(lp.y),'text-anchor':'middle',
+      'dominant-baseline':'central',
+      fill:maj?'rgba(226,232,240,.92)':'rgba(100,116,139,.75)',
+      'font-size':maj?'14':'9.5','font-weight':maj?'600':'400',
+      'font-family':'Inter,sans-serif'});
+    t.textContent=h;lM.appendChild(t);
+  }
+  // Re-append hands layer on top of marks (preserve z-order)
+  svgEl.appendChild(lHands);
+}
+
+/* ── BUILD WEDGES ────────────────────────────────────────────── */
+function buildWedges(){
+  lW.innerHTML='';
+  if(!S.prices)return;
+  const{min,max}=S.stats;
+  S.prices.forEach(({hour,price})=>{
+    const r=rat(price,min,max),c=lerp(r);
+    const s=-90+hour*15+GAP/2,e=s+WDEG;
+    const rO=R_MIN+r*(R_MAX-R_MIN);
+    lW.appendChild(svgN('path',{
+      d:wPath(R_IN,rO,s,e),
+      fill:`rgba(${c.join(',')},0.72)`,
+      class:'wedge','data-h':hour}));
+    lW.appendChild(svgN('path',{
+      d:wPath(R_IN,R_HIT,s,e),
+      fill:'transparent',cursor:'pointer',
+      class:'wh','data-h':hour}));
+  });
+  // Re-ensure inner mask stays above wedges
+  const cm=$('cmask');
+  if(cm)cm.parentNode.insertBefore(cm,lM);
+  attachEvents();
+  hlNow();
+}
+
+/* ── HIGHLIGHT ───────────────────────────────────────────────── */
+function hlNow(){
+  if(!S.prices||S.mode!=='today')return;
+  const h=madridNow().getHours();
+  lW.querySelectorAll('.wedge').forEach(w=>{
+    const wh=+w.dataset.h;
+    if(wh===h){w.setAttribute('opacity','0.95');w.setAttribute('filter','url(#glow)');w.classList.add('wnow');}
+    else{w.setAttribute('opacity','0.72');w.removeAttribute('filter');w.classList.remove('wnow');}
+  });
+}
+function clearHL(){lW.querySelectorAll('.wedge').forEach(w=>{w.setAttribute('opacity','0.72');w.removeAttribute('filter');w.classList.remove('wnow');});}
+
+/* ── EVENTS ──────────────────────────────────────────────────── */
+function attachEvents(){
+  lW.querySelectorAll('.wh').forEach(h=>{
+    if(TOUCH) h.addEventListener('touchstart',onTouch,{passive:false});
+    else{
+      h.addEventListener('mouseenter',onEnter);
+      h.addEventListener('mousemove', onMove);
+      h.addEventListener('mouseleave',()=>{ttD.style.display='none';});
+    }
+  });
+  if(TOUCH) document.addEventListener('touchstart',onOut,{passive:true});
+}
+function onTouch(e){
+  e.preventDefault();e.stopPropagation();
+  const h=+this.dataset.h;
+  if(S.active===h){S.active=null;hideMob();}
+  else{S.active=h;showMob(h);}
+}
+function onOut(e){if(svgEl.contains(e.target)||ttM.contains(e.target))return;S.active=null;hideMob();}
+function onEnter(e){showDesk(+this.dataset.h,e);}
+function onMove(e){
+  let l=e.clientX+16,t=e.clientY-12;
+  const tw=ttD.offsetWidth||180,th=ttD.offsetHeight||90;
+  if(l+tw>window.innerWidth-8)l=e.clientX-tw-16;
+  if(t+th>window.innerHeight-8)t=e.clientY-th-12;
+  ttD.style.left=l+'px';ttD.style.top=t+'px';
+}
+
+/* ── TOOLTIP HTML ────────────────────────────────────────────── */
+function ttHTML(h){
+  if(!S.prices||!S.stats)return'';
+  const p=S.prices[h],r=rat(p.price,S.stats.min,S.stats.max);
+  const c=lerp(r),[bt,bc]=badge(r);
+  return`<div class="ttr">${fmtR(h)}</div>
+<div class="ttp" style="color:rgb(${c.join(',')})">${fmt5(p.price)}</div>
+<div class="ttbadge ${bc}">${bt}</div>`;
+}
+function showDesk(h,e){
+  ttD.innerHTML=ttHTML(h);ttD.style.display='block';
+  ttD.style.left=(e.clientX+16)+'px';ttD.style.top=(e.clientY-12)+'px';
+}
+function showMob(h){ttM.innerHTML=ttHTML(h);ttM.classList.add('open');}
+function hideMob(){
+  ttM.classList.remove('open');
+  setTimeout(()=>{if(!ttM.classList.contains('open'))
+    ttM.innerHTML='<div class="hint">Toca una franja horaria para ver su precio</div>';},280);
+}
+
+/* ── INFO PANEL ──────────────────────────────────────────────── */
+function updatePanel(){
+  if(!S.prices||!S.stats)return;
+  const n=madridNow();
+  const ds=n.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  pDate.innerHTML=`<span class="dtx">${ds[0].toUpperCase()+ds.slice(1)}</span>`;
+
+  const ch=S.prices[S.stats.cheapIdx];
+  pCheap.innerHTML=`<span class="lbl">Hora más barata</span><span class="rng">${fmtR(ch.hour)}</span><span class="prc cg">${fmt5(ch.price)}</span>`;
+
+  const ex=S.prices[S.stats.expIdx];
+  pExp.innerHTML=`<span class="lbl">Hora más cara</span><span class="rng">${fmtR(ex.hour)}</span><span class="prc cr">${fmt5(ex.price)}</span>`;
+
+  pAvg.innerHTML=`<span class="lbl">Precio medio</span><span class="prc cy">${fmt5(S.stats.avg)}</span>`;
+
+  if(S.mode==='today'){
+    const h=n.getHours(),cp=S.prices[h],r=rat(cp.price,S.stats.min,S.stats.max),c=lerp(r);
+    pCur.style.display='';
+    pCur.innerHTML=`<span class="lbl">Precio actual</span><span class="rng">${fmtR(h)}</span><span class="prc" style="color:rgb(${c.join(',')})">${fmt5(cp.price)}</span>`;
+  }else{pCur.style.display='none';}
+}
+
+/* ── HANDS ───────────────────────────────────────────────────── */
+function madridNow(){
+  return new Date(new Date().toLocaleString('en-US',{timeZone:'Europe/Madrid'}));
+}
+
+function updateHands(){
+  if(S.mode!=='today')return -1;
+  const n=madridNow();
+  const h=n.getHours(),m=n.getMinutes(),s=n.getSeconds();
+  // 24h clock: 1h = 15°, starting from top (0h = top)
+  const hDeg=(h+m/60+s/3600)*15;
+  // minute: 1min = 6°
+  const mDeg=(m+s/60)*6;
+  // second: 1sec = 6°
+  const sDeg=s*6;
+
+  // arm lengths and tail lengths
+  setHand(elHr, elHrSh, hDeg, 152, 35);
+  setHand(elMn, elMnSh, mDeg, 184, 26);
+  setHand(elSc, null,   sDeg, 190, 24);
+  return h;
+}
+
+function handsVisible(v){
+  lHands.style.visibility=v?'visible':'hidden';
+}
+
+/* ── MODE ────────────────────────────────────────────────────── */
+function setMode(m){
+  S.mode=m;
+  bToday.classList.toggle('on',m==='today');
+  bTomr.classList.toggle('on',m==='tomorrow');
+  if(m==='tomorrow'){
+    tmrOvl.style.display='flex';
+    handsVisible(false);
+    clearHL();
+  }else{
+    tmrOvl.style.display='none';
+    handsVisible(true);
+    updateHands();
+    hlNow();
+  }
+  if(TOUCH){S.active=null;hideMob();}
+  updatePanel();
+}
+
+/* ── TICK ────────────────────────────────────────────────────── */
+function tick(){
+  const h=updateHands();
+  if(h!==-1&&h!==S.lastH){S.lastH=h;hlNow();updatePanel();}
+}
+
+/* ── INIT ────────────────────────────────────────────────────── */
+async function init(){
+  buildMarks();
+  updateHands(); // draw hands immediately
+  setInterval(tick,1000);
+
+  bToday.addEventListener('click',()=>setMode('today'));
+  bTomr.addEventListener('click', ()=>setMode('tomorrow'));
+
+  S.prices=await loadPrices();
+  S.stats=calcStats(S.prices);
+  buildWedges();
+  updatePanel();
+}
+
+init();
+})();
+</script>
+</body>
+</html>
