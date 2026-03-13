@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="Visualiza el precio de la electricidad PVPC en España en un reloj de 24 horas con gráfico radial de tarifas por hora.">
+<meta name="theme-color" content="#0b1120">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Reloj PVPC — Precio de la luz en España hoy</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --clock-size: min(92vw, 480px);
+  --bg:         #0b1120;
+  --card-bg:    rgba(255,255,255,0.04);
+  --card-border:rgba(255,255,255,0.07);
+  --text:       #e2e8f0;
+  --muted:      #64748b;
+  --accent:     #38bdf8;
+  --green:      rgb(34,197,94);
+  --yellow:     rgb(234,179,8);
+  --red:        rgb(239,68,68);
+  --tt-h:       108px;
+  --font:       'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+@media (min-width: 600px) { :root { --clock-size: min(68vw, 520px); } }
+@media (min-width: 960px) { :root { --clock-size: 520px; } }
+@media (max-width: 359px) { :root { --clock-size: 96vw; } }
+
+html, body {
+  width: 100%; min-height: 100dvh;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse at 25% 15%, rgba(56,189,248,0.05) 0%, transparent 55%),
+    radial-gradient(ellipse at 80% 75%, rgba(99,102,241,0.05) 0%, transparent 55%);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overflow-x: hidden;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 12px 0;
+}
+
+#app {
+  width: 100%;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+#api-warning {
+  display: none;
+  background: rgba(234,179,8,0.12);
+  border: 1px solid rgba(234,179,8,0.3);
+  color: rgb(234,179,8);
+  font-size: 12px; font-weight: 500;
+  padding: 6px 16px; border-radius: 20px;
+  letter-spacing: 0.02em;
+}
+
+.clock-wrap {
+  position: relative;
+  width: var(--clock-size);
+  height: var(--clock-size);
+  flex-shrink: 0;
+}
+#clock-svg {
+  width: 100%; height: 100%;
+  display: block;
+  touch-action: none;
+  user-select: none; -webkit-user-select: none;
+  overflow: visible;
+}
+
+#tomorrow-ovl {
+  display: none;
+  position: absolute; inset: 0;
+  background: rgba(11,17,32,0.82);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  border-radius: 50%;
+  align-items: center; justify-content: center;
+  text-align: center; padding: 32px;
+  font-size: clamp(13px, 3.5vw, 15px);
+  font-weight: 500; line-height: 1.65;
+  color: rgba(226,232,240,0.85);
+}
+
+.mode-btns {
+  display: flex;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--card-border);
+  border-radius: 24px; padding: 3px; gap: 2px;
+}
+.btn-m {
+  background: transparent; border: none;
+  color: var(--muted); font-family: var(--font);
+  font-size: 13px; font-weight: 500;
+  padding: 7px 22px; border-radius: 20px;
+  cursor: pointer; transition: all .2s ease;
+  letter-spacing: .02em;
+}
+.btn-m.active {
+  background: rgba(56,189,248,0.15); color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(56,189,248,0.2);
+}
+.btn-m:not(.active):hover { color: var(--text); background: rgba(255,255,255,0.04); }
+
+.info-panel {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px; padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.card-full { grid-column: 1 / -1; align-items: center; padding: 10px 16px; }
+.card .lbl { font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.card .rng { font-size: 11px; color: rgba(148,163,184,.8); }
+.card .prc { font-size: 14px; font-weight: 600; letter-spacing: -.01em; }
+.card .dtxt{ font-size: 13px; font-weight: 500; color: var(--text); text-transform: capitalize; }
+.c-g { color: var(--green); }
+.c-y { color: var(--yellow); }
+.c-r { color: var(--red); }
+
+@media (min-width: 600px)  { .info-panel { grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); } }
+@media (min-width: 960px)  {
+  .info-panel { grid-template-columns: 2fr 1fr 1fr 1fr 1fr; }
+  .card-full  { grid-column: 1; }
+}
+
+/* Desktop tooltip */
+#tt-desk {
+  display: none; position: fixed; z-index: 1000; pointer-events: none;
+  background: rgba(15,23,42,0.97);
+  border: 1px solid rgba(56,189,248,0.2);
+  border-radius: 10px; padding: 10px 14px; min-width: 160px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+
+/* Mobile tooltip — always visible on touch, reserved at bottom */
+#tt-mob {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 1000;
+  background: rgba(13,20,38,0.98);
+  border-top: 1px solid rgba(56,189,248,0.14);
+  padding: 14px 20px 20px;
+  min-height: var(--tt-h); text-align: center;
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  transform: translateY(100%);
+  transition: transform .28s cubic-bezier(.4,0,.2,1);
+  /* shown by JS */
+  display: none;
+}
+#tt-mob.open { transform: translateY(0); }
+
+.tt-rng  { font-size:11px; font-weight:500; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; margin-bottom:3px; }
+.tt-prc  { font-size:20px; font-weight:700; letter-spacing:-.02em; line-height:1.2; }
+#tt-desk .tt-prc { font-size:16px; }
+.tt-badge{ display:inline-block; font-size:10px; font-weight:700; letter-spacing:.1em; padding:2px 8px; border-radius:10px; margin-top:4px; }
+.bg-cheap    { background:rgba(34,197,94,.15);  color:var(--green); }
+.bg-mid      { background:rgba(234,179,8,.15);  color:var(--yellow); }
+.bg-expensive{ background:rgba(239,68,68,.15);  color:var(--red); }
+.tt-hint {
+  color:var(--muted); font-size:12px;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+  padding-top: 4px;
+}
+.tt-hint::before { content:'👆'; font-size:14px; }
+
+@keyframes wpulse { 0%,100%{opacity:.88} 50%{opacity:1} }
+.wedge-now { animation: wpulse 2s ease-in-out infinite; }
+
+@keyframes shimmer { 0%{opacity:.3} 50%{opacity:.7} 100%{opacity:.3} }
+.skel { animation:shimmer 1.5s infinite; background:rgba(255,255,255,.06); border-radius:4px; height:14px; width:80%; }
+
+@media (max-height:500px) and (orientation:landscape) {
+  body { padding: 8px 12px 0; }
+  #app { flex-direction:row; flex-wrap:wrap; align-items:flex-start; gap:12px; }
+  .clock-wrap { --clock-size: min(44vh,380px); }
+  .info-panel { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="api-warning">⚠️ Mostrando datos de ejemplo</div>
+
+  <div class="clock-wrap">
+    <svg id="clock-svg" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg"
+         role="img" aria-label="Reloj PVPC 24 horas">
+      <defs>
+        <radialGradient id="bgGrad" cx="50%" cy="45%" r="55%">
+          <stop offset="0%"   stop-color="#1e2d42"/>
+          <stop offset="100%" stop-color="#0b1120"/>
+        </radialGradient>
+        <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="hShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="rgba(0,0,0,.65)"/>
+        </filter>
+      </defs>
+
+      <g id="l-bg">
+        <circle cx="300" cy="300" r="273" fill="url(#bgGrad)" stroke="rgba(148,163,184,.08)" stroke-width="1"/>
+        <circle cx="300" cy="300" r="273" fill="none" stroke="rgba(56,189,248,.05)" stroke-width="18"/>
+      </g>
+
+      <g id="l-wedges"></g>
+
+      <!-- inner mask hides wedge cores -->
+      <circle cx="300" cy="300" r="15" fill="#0b1120"/>
+
+      <g id="l-marks"></g>
+
+      <g id="l-hands">
+        <!-- Hour hand tail + arm (endpoints set by JS) -->
+        <line id="hr-tail"  x1="300" y1="300" x2="300" y2="335"
+              stroke="rgba(226,232,240,.45)" stroke-width="5.5" stroke-linecap="round"
+              filter="url(#hShadow)"/>
+        <line id="hr-arm"   x1="300" y1="300" x2="300" y2="148"
+              stroke="#e2e8f0" stroke-width="5.5" stroke-linecap="round"
+              filter="url(#hShadow)"/>
+        <!-- Minute hand tail + arm -->
+        <line id="min-tail" x1="300" y1="300" x2="300" y2="325"
+              stroke="rgba(226,232,240,.35)" stroke-width="2.8" stroke-linecap="round"
+              filter="url(#hShadow)"/>
+        <line id="min-arm"  x1="300" y1="300" x2="300" y2="116"
+              stroke="rgba(226,232,240,.88)" stroke-width="2.8" stroke-linecap="round"
+              filter="url(#hShadow)"/>
+        <!-- Second hand tail + arm -->
+        <line id="sec-tail" x1="300" y1="300" x2="300" y2="322"
+              stroke="rgba(239,68,68,.55)" stroke-width="1.3" stroke-linecap="round"/>
+        <line id="sec-arm"  x1="300" y1="300" x2="300" y2="110"
+              stroke="#ef4444" stroke-width="1.3" stroke-linecap="round"/>
+        <!-- Center dots -->
+        <circle cx="300" cy="300" r="7"   fill="#0b1120" stroke="#38bdf8" stroke-width="2.5"/>
+        <circle cx="300" cy="300" r="2.5" fill="#38bdf8"/>
+      </g>
+    </svg>
+    <div id="tomorrow-ovl">
+      Los precios de mañana se publican a partir de las&nbsp;<strong>20:15h</strong>&nbsp;aproximadamente.
+    </div>
+  </div>
+
+  <div class="mode-btns">
+    <button id="btn-today"    class="btn-m active">Hoy</button>
+    <button id="btn-tomorrow" class="btn-m">Mañana</button>
+  </div>
+
+  <div class="info-panel">
+    <div id="p-date"  class="card card-full"><span class="dtxt skel">&nbsp;</span></div>
+    <div id="p-cheap" class="card"><span class="lbl">Hora más barata</span><span class="rng skel">&nbsp;</span><span class="prc c-g skel">&nbsp;</span></div>
+    <div id="p-exp"   class="card"><span class="lbl">Hora más cara</span><span class="rng skel">&nbsp;</span><span class="prc c-r skel">&nbsp;</span></div>
+    <div id="p-avg"   class="card"><span class="lbl">Precio medio</span><span class="prc c-y skel">&nbsp;</span></div>
+    <div id="p-cur"   class="card"><span class="lbl">Precio actual</span><span class="rng skel">&nbsp;</span><span class="prc skel">&nbsp;</span></div>
+  </div>
+</div>
+
+<div id="tt-desk"></div>
+<div id="tt-mob"><div class="tt-hint">Toca una franja horaria para ver su precio</div></div>
+
+<noscript><p style="color:#94a3b8;font-family:sans-serif;padding:2rem;text-align:center">Esta aplicación requiere JavaScript.</p></noscript>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── CONSTANTS ─────────────────────────────────────────── */
+  const CX = 300, CY = 300;
+  const R_IN  = 16, R_MIN = 68, R_MAX = 210, R_HIT = R_MAX + 22;
+  const R_TI_MINOR = 220, R_TO_MINOR = 228;
+  const R_TI_MAJOR = 213, R_TO_MAJOR = 234;
+  const R_LBL = 251, GAP = 1.4, WDEG = 15 - GAP;
+  const T = 8000; // fetch timeout ms
+
+  const STOPS = [
+    [0,    [34,  197, 94]],
+    [0.33, [234, 179,  8]],
+    [0.66, [249, 115, 22]],
+    [1,    [239,  68, 68]],
+  ];
+
+  const API = 'https://api.preciodelaluz.org/v1/prices/all?zone=PCB';
+  const P1  = 'https://api.allorigins.win/raw?url=';
+  const P2  = 'https://corsproxy.io/?url=';
+
+  /* ── STATE ──────────────────────────────────────────────── */
+  const S = { prices:null, stats:null, mode:'today', active:null, lastH:-1 };
+
+  /* ── DOM ────────────────────────────────────────────────── */
+  const $       = id => document.getElementById(id);
+  const svgEl   = $('clock-svg');
+  const lW      = $('l-wedges');
+  const lM      = $('l-marks');
+  const hrArm   = $('hr-arm');
+  const hrTail  = $('hr-tail');
+  const minArm  = $('min-arm');
+  const minTail = $('min-tail');
+  const secArm  = $('sec-arm');
+  const secTail = $('sec-tail');
+  const ttD     = $('tt-desk');
+  const ttM     = $('tt-mob');
+  const btnT    = $('btn-today');
+  const btnTmr  = $('btn-tomorrow');
+  const pDate   = $('p-date');
+  const pCheap  = $('p-cheap');
+  const pExp    = $('p-exp');
+  const pAvg    = $('p-avg');
+  const pCur    = $('p-cur');
+  const apiWarn = $('api-warning');
+  const tmrOvl  = $('tomorrow-ovl');
+
+  /* ── DEVICE ─────────────────────────────────────────────── */
+  const TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  if (TOUCH) {
+    ttM.style.display = 'block';
+    const h = parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue('--tt-h')) || 108;
+    document.body.style.paddingBottom = (h + 16) + 'px';
+  }
+
+  /* ── UTILS ──────────────────────────────────────────────── */
+  const now = () => new Date(new Date().toLocaleString('en-US', { timeZone:'Europe/Madrid' }));
+  const rad = d => d * Math.PI / 180;
+  const pol = (r, d) => ({ x: CX + r*Math.cos(rad(d)), y: CY + r*Math.sin(rad(d)) });
+
+  function svgN(tag, a) {
+    const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [k,v] of Object.entries(a)) el.setAttribute(k, v);
+    return el;
+  }
+
+  function wPath(rIn, rOut, s, e) {
+    const a=pol(rIn,s), b=pol(rOut,s), c=pol(rOut,e), d=pol(rIn,e);
+    const lg = (e-s)>180?1:0;
+    return `M${f(a.x)} ${f(a.y)} L${f(b.x)} ${f(b.y)} A${rOut} ${rOut} 0 ${lg} 1 ${f(c.x)} ${f(c.y)} L${f(d.x)} ${f(d.y)} A${rIn} ${rIn} 0 ${lg} 0 ${f(a.x)} ${f(a.y)} Z`;
+  }
+  const f = n => n.toFixed(2);
+
+  function lerp(ratio) {
+    for (let i=0; i<STOPS.length-1; i++) {
+      const [t0,c0]=STOPS[i], [t1,c1]=STOPS[i+1];
+      if (ratio<=t1) {
+        const t=(ratio-t0)/(t1-t0);
+        return c0.map((v,j)=>Math.round(v+t*(c1[j]-v)));
+      }
+    }
+    return STOPS[STOPS.length-1][1];
+  }
+
+  const ratio = (p,mn,mx) => mx>mn ? Math.max(0,Math.min(1,(p-mn)/(mx-mn))) : 0;
+  const fmtP  = p => p.toFixed(5)+' €/kWh';
+  const fmtR  = h => `${pad(h)}:00 – ${pad((h+1)%24)}:00`;
+  const pad   = n => String(n).padStart(2,'0');
+
+  function badge(r) {
+    if (r<0.34) return ['BARATA',    'bg-cheap'];
+    if (r<0.66) return ['MEDIA',     'bg-mid'];
+    return              ['CARA',     'bg-expensive'];
+  }
+
+  /* ── FETCH — no AbortController, uses Promise.race ─────── */
+  function fetchRace(url, ms) {
+    const req  = fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); });
+    const tout = new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')), ms));
+    return Promise.race([req, tout]);
+  }
+
+  async function loadPrices() {
+    const tries = [
+      ()=>fetchRace(API, T),
+      ()=>fetchRace(P1+encodeURIComponent(API), T),
+      ()=>fetchRace(P2+encodeURIComponent(API), T),
+    ];
+    for (let i=0; i<tries.length; i++) {
+      try {
+        const d = await tries[i]();
+        console.log(`✅ API cargada (intento ${i+1})`);
+        return parseApi(d);
+      } catch(e) {
+        console.log(`❌ Intento ${i+1} fallido:`, e.message);
+      }
+    }
+    console.log('⚠️ Usando datos de ejemplo hardcodeados');
+    apiWarn.style.display = 'block';
+    return fallback();
+  }
+
+  function parseApi(data) {
+    return Array.from({length:24},(_,h)=>{
+      const k = `${pad(h)}-${pad(h+1)}`;
+      const k2= `${h}-${h+1}`;
+      const e = data[k]||data[k2]||null;
+      return { hour:h, price: e ? e.price/1000 : 0.1 };
+    });
+  }
+
+  function fallback() {
+    return [42,38,35,33,34,40,62,92,115,122,118,114,
+            108,103,98,95,100,118,138,148,130,112,88,60]
+      .map((v,h)=>({hour:h, price:v/1000}));
+  }
+
+  function calcStats(prices) {
+    const v = prices.map(p=>p.price);
+    const mn=Math.min(...v), mx=Math.max(...v);
+    return { min:mn, max:mx,
+      avg: v.reduce((a,b)=>a+b,0)/v.length,
+      cheapIdx:v.indexOf(mn), expIdx:v.indexOf(mx) };
+  }
+
+  /* ── BUILD MARKS ────────────────────────────────────────── */
+  function buildMarks() {
+    lM.innerHTML='';
+    for(let h=0;h<24;h++){
+      const maj=h%6===0, ang=-90+h*15;
+      const ri=maj?R_TI_MAJOR:R_TI_MINOR, ro=maj?R_TO_MAJOR:R_TO_MINOR;
+      const a1=pol(ri,ang), a2=pol(ro,ang);
+      lM.appendChild(svgN('line',{
+        x1:f(a1.x),y1:f(a1.y),x2:f(a2.x),y2:f(a2.y),
+        stroke:maj?'rgba(148,163,184,.85)':'rgba(148,163,184,.35)',
+        'stroke-width':maj?2.2:1,'stroke-linecap':'round'
+      }));
+      const lp=pol(R_LBL,ang);
+      const t=svgN('text',{
+        x:f(lp.x),y:f(lp.y),'text-anchor':'middle','dominant-baseline':'central',
+        fill:maj?'rgba(226,232,240,.92)':'rgba(100,116,139,.75)',
+        'font-size':maj?'14':'9.5','font-weight':maj?'600':'400',
+        'font-family':'Inter, sans-serif'
+      });
+      t.textContent=h; lM.appendChild(t);
+    }
+  }
+
+  /* ── BUILD WEDGES ───────────────────────────────────────── */
+  function buildWedges() {
+    lW.innerHTML='';
+    if(!S.prices) return;
+    const {min,max}=S.stats;
+    S.prices.forEach(({hour,price})=>{
+      const r = ratio(price,min,max);
+      const c = lerp(r);
+      const s = -90+hour*15+GAP/2, e=s+WDEG;
+      const rO = R_MIN+r*(R_MAX-R_MIN);
+      lW.appendChild(svgN('path',{
+        d:wPath(R_IN,rO,s,e),
+        fill:`rgba(${c.join(',')},0.72)`,
+        class:'wedge','data-hour':hour,'data-r':r.toFixed(4),'data-p':price.toFixed(6)
+      }));
+      lW.appendChild(svgN('path',{
+        d:wPath(R_IN,R_HIT,s,e),
+        fill:'transparent',cursor:'pointer',
+        class:'wedge-hit','data-hour':hour
+      }));
+    });
+    attachEvents();
+    hlNow();
+  }
+
+  /* ── HIGHLIGHT CURRENT HOUR ─────────────────────────────── */
+  function hlNow() {
+    if(!S.prices||S.mode!=='today') return;
+    const h=now().getHours();
+    lW.querySelectorAll('.wedge').forEach(w=>{
+      if(parseInt(w.dataset.hour)===h){
+        w.setAttribute('opacity','0.95');
+        w.setAttribute('filter','url(#glow)');
+        w.classList.add('wedge-now');
+      } else {
+        w.setAttribute('opacity','0.72');
+        w.removeAttribute('filter');
+        w.classList.remove('wedge-now');
+      }
+    });
+  }
+  function clearHL() {
+    lW.querySelectorAll('.wedge').forEach(w=>{
+      w.setAttribute('opacity','0.72');
+      w.removeAttribute('filter');
+      w.classList.remove('wedge-now');
+    });
+  }
+
+  /* ── EVENTS ─────────────────────────────────────────────── */
+  function attachEvents() {
+    lW.querySelectorAll('.wedge-hit').forEach(hit=>{
+      if(TOUCH){
+        hit.addEventListener('touchstart', onTouch, {passive:false});
+      } else {
+        hit.addEventListener('mouseenter', onEnter);
+        hit.addEventListener('mousemove',  onMove);
+        hit.addEventListener('mouseleave', ()=>{ ttD.style.display='none'; });
+      }
+    });
+    if(TOUCH) document.addEventListener('touchstart', onOutside, {passive:true});
+  }
+
+  function onTouch(e) {
+    e.preventDefault(); e.stopPropagation();
+    const h=parseInt(this.dataset.hour);
+    if(S.active===h){ S.active=null; hideMob(); }
+    else            { S.active=h;    showMob(h); }
+  }
+  function onOutside(e) {
+    if(svgEl.contains(e.target)||ttM.contains(e.target)) return;
+    S.active=null; hideMob();
+  }
+  function onEnter(e) { showDesk(parseInt(this.dataset.hour),e); }
+  function onMove(e) {
+    let l=e.clientX+16, t=e.clientY-12;
+    const tw=ttD.offsetWidth||180, th=ttD.offsetHeight||90;
+    if(l+tw>window.innerWidth-8)  l=e.clientX-tw-16;
+    if(t+th>window.innerHeight-8) t=e.clientY-th-12;
+    ttD.style.left=l+'px'; ttD.style.top=t+'px';
+  }
+
+  /* ── TOOLTIP HTML ───────────────────────────────────────── */
+  function ttHTML(h) {
+    if(!S.prices||!S.stats) return '';
+    const p=S.prices[h], r=ratio(p.price,S.stats.min,S.stats.max);
+    const c=lerp(r), [bt,bc]=badge(r);
+    return `<div class="tt-rng">${fmtR(h)}</div>
+            <div class="tt-prc" style="color:rgb(${c.join(',')})">${fmtP(p.price)}</div>
+            <div class="tt-badge ${bc}">${bt}</div>`;
+  }
+  function showDesk(h,e){
+    ttD.innerHTML=ttHTML(h); ttD.style.display='block';
+    ttD.style.left=(e.clientX+16)+'px'; ttD.style.top=(e.clientY-12)+'px';
+  }
+  function showMob(h){ ttM.innerHTML=ttHTML(h); ttM.classList.add('open'); }
+  function hideMob(){
+    ttM.classList.remove('open');
+    setTimeout(()=>{
+      if(!ttM.classList.contains('open'))
+        ttM.innerHTML='<div class="tt-hint">Toca una franja horaria para ver su precio</div>';
+    },280);
+  }
+
+  /* ── INFO PANEL ─────────────────────────────────────────── */
+  function updatePanel() {
+    if(!S.prices||!S.stats) return;
+    const n=now();
+    const ds=n.toLocaleDateString('es-ES',
+      {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    pDate.innerHTML=`<span class="dtxt">${ds.charAt(0).toUpperCase()+ds.slice(1)}</span>`;
+
+    const ch=S.prices[S.stats.cheapIdx];
+    pCheap.innerHTML=`<span class="lbl">Hora más barata</span>
+      <span class="rng">${fmtR(ch.hour)}</span>
+      <span class="prc c-g">${fmtP(ch.price)}</span>`;
+
+    const ex=S.prices[S.stats.expIdx];
+    pExp.innerHTML=`<span class="lbl">Hora más cara</span>
+      <span class="rng">${fmtR(ex.hour)}</span>
+      <span class="prc c-r">${fmtP(ex.price)}</span>`;
+
+    pAvg.innerHTML=`<span class="lbl">Precio medio</span>
+      <span class="prc c-y">${fmtP(S.stats.avg)}</span>`;
+
+    if(S.mode==='today'){
+      const h=n.getHours(), cp=S.prices[h];
+      const r=ratio(cp.price,S.stats.min,S.stats.max), c=lerp(r);
+      pCur.style.display='';
+      pCur.innerHTML=`<span class="lbl">Precio actual</span>
+        <span class="rng">${fmtR(h)}</span>
+        <span class="prc" style="color:rgb(${c.join(',')})">${fmtP(cp.price)}</span>`;
+    } else {
+      pCur.style.display='none';
+    }
+  }
+
+  /* ── HANDS ──────────────────────────────────────────────── */
+  // angle: degrees clockwise from top (0 = midnight/12h position)
+  // returns endpoint coords given arm length and tail length
+  function handCoords(angleDeg, armLen, tailLen) {
+    const r = (angleDeg - 90) * Math.PI / 180;
+    const cos = Math.cos(r), sin = Math.sin(r);
+    return {
+      tx: +(300 + armLen  * cos).toFixed(2),
+      ty: +(300 + armLen  * sin).toFixed(2),
+      bx: +(300 - tailLen * cos).toFixed(2),
+      by: +(300 - tailLen * sin).toFixed(2),
+    };
+  }
+
+  function setLine(arm, tail, angleDeg, armLen, tailLen) {
+    const {tx, ty, bx, by} = handCoords(angleDeg, armLen, tailLen);
+    arm.setAttribute('x2',  tx); arm.setAttribute('y2',  ty);
+    tail.setAttribute('x2', bx); tail.setAttribute('y2', by);
+  }
+
+  function updateHands() {
+    if (S.mode !== 'today') return -1;
+    const n   = now();
+    const h   = n.getHours(), m = n.getMinutes(), sec = n.getSeconds();
+    // 24h clock: 1h = 15°, full circle = 24h
+    const hDeg  = (h + m/60 + sec/3600) * 15;
+    // minute hand: 1min = 6°
+    const mDeg  = (m + sec/60) * 6;
+    // second hand: 1sec = 6°
+    const sDeg  = sec * 6;
+
+    setLine(hrArm,  hrTail,  hDeg, 152, 35);   // hour:   152px arm, 35px tail
+    setLine(minArm, minTail, mDeg, 184, 25);   // minute: 184px arm, 25px tail
+    setLine(secArm, secTail, sDeg, 190, 22);   // second: 190px arm, 22px tail
+    return h;
+  }
+
+  function handsVisible(v) {
+    const disp = v ? '' : 'none';
+    [hrArm, hrTail, minArm, minTail, secArm, secTail].forEach(el => el.style.display = disp);
+  }
+  function setMode(m) {
+    S.mode=m;
+    btnT.classList.toggle('active',   m==='today');
+    btnTmr.classList.toggle('active', m==='tomorrow');
+    if(m==='tomorrow'){
+      tmrOvl.style.display='flex';
+      handsVisible(false);
+      clearHL();
+    } else {
+      tmrOvl.style.display='none';
+      handsVisible(true);
+      updateHands();
+      hlNow();
+    }
+    if(TOUCH){ S.active=null; hideMob(); }
+    updatePanel();
+  }
+
+  /* ── TICK ───────────────────────────────────────────────── */
+  function tick() {
+    const h=updateHands();
+    if(h!==-1 && h!==S.lastH){ S.lastH=h; hlNow(); updatePanel(); }
+  }
+
+  /* ── INIT ───────────────────────────────────────────────── */
+  async function init() {
+    buildMarks();
+    updateHands();           // show hands immediately before API loads
+    setInterval(tick, 1000);
+
+    btnT.addEventListener('click',   ()=>setMode('today'));
+    btnTmr.addEventListener('click', ()=>setMode('tomorrow'));
+
+    S.prices = await loadPrices();
+    S.stats  = calcStats(S.prices);
+    buildWedges();
+    updatePanel();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
