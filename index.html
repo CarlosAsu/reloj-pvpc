@@ -75,7 +75,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:16px 12px 0}
 .lbl{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .rng{font-size:11px;color:rgba(148,163,184,.8)}
 .prc{font-size:14px;font-weight:600;letter-spacing:-.01em}
-.dtx{font-size:13px;font-weight:500;color:var(--text);text-transform:capitalize}
+.dtx{font-size:13px;font-weight:500;color:var(--text)}
 .cg{color:var(--gr)}.cy{color:var(--ye)}.cr{color:var(--re)}
 @media(min-width:600px){.ip{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}}
 @media(min-width:960px){.ip{grid-template-columns:2fr 1fr 1fr 1fr 1fr}.cf{grid-column:1}}
@@ -224,23 +224,35 @@ const STOPS=[
 ];
 
 // Fuente: API oficial REData de Red Eléctrica (pública, sin token).
-// Se intenta directa y, si el navegador la bloquea, a través de proxies CORS.
+// 1º el archivo datos/AAAA-MM-DD.json que la GitHub Action guarda en el propio
+//    repositorio (mismo dominio: sin CORS ni proxies).
+// 2º la API directa y, solo para hoy, a través de proxies CORS.
 function reeUrl(day){
   return 'https://apidatos.ree.es/es/datos/mercados/precios-mercados-tiempo-real'
     +`?start_date=${day}T00:00&end_date=${day}T23:59&time_trunc=hour`;
 }
-function sources(day){
+function sources(day,full){
   const u=reeUrl(day), e=encodeURIComponent(u);
-  return [
-    ['REE directa',        u],
+  const list=[
+    ['Archivo del repositorio', `datos/${day}.json?v=${Math.floor(Date.now()/600000)}`],
+    ['REE directa', u],
+  ];
+  if(full) list.push(
     ['REE vía allorigins', `https://api.allorigins.win/raw?url=${e}`],
     ['REE vía corsproxy',  `https://corsproxy.io/?url=${e}`],
-    ['REE vía codetabs',   `https://api.codetabs.com/v1/proxy?quest=${e}`],
-  ];
+    ['REE vía codetabs',   `https://api.codetabs.com/v1/proxy?quest=${e}`]);
+  return list;
 }
+// Fecha de Madrid en formato AAAA-MM-DD (offset 0 = hoy, 1 = mañana)
+function dayStr(offset){
+  const n=madridNow(), d=new Date(n.getFullYear(),n.getMonth(),n.getDate()+offset);
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+const TMR_MSG='Los precios de mañana se publican a partir de las&nbsp;<strong>20:15h</strong>&nbsp;aproximadamente.';
 
 /* ── STATE ───────────────────────────────────────────────────── */
-const S={prices:null,stats:null,mode:'today',active:null,lastH:-1};
+const S={prices:null,stats:null,mode:'today',active:null,lastH:-1,
+  today:null,tomorrow:null,loadedDay:null};
 
 /* ── DOM ─────────────────────────────────────────────────────── */
 const $=id=>document.getElementById(id);
@@ -309,24 +321,20 @@ function jFetch(url){
   return Promise.race([p,t]);
 }
 
-async function loadPrices(){
-  const n=madridNow();
-  const day=`${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;
+// Devuelve {prices,stats} si alguna fuente responde, o {errs} si fallan todas
+async function loadDay(day,full){
   const errs=[];
-  for(const [name,url] of sources(day)){
+  for(const [name,url] of sources(day,full)){
     try{
       const prices=parseRee(await jFetch(url));
-      console.log(`✅ Datos cargados: ${name}`);
-      return prices;
+      console.log(`✅ ${day}: ${name}`);
+      return {prices,stats:calcStats(prices)};
     }catch(e){
-      console.log(`❌ ${name}:`,e.message);
+      console.log(`❌ ${day} · ${name}:`,e.message);
       errs.push(`${name}: ${e.message}`);
     }
   }
-  console.log('⚠️ Usando datos de ejemplo');
-  $('aw-d').textContent=errs.join('\n');
-  apiWarn.style.display='block';
-  return fallback();
+  return {errs};
 }
 
 // Respuesta REData: included[] trae una serie por indicador; PVPC es el id 1001.
@@ -381,7 +389,7 @@ function wPath(rIn,rOut,s,e){
 function buildMarks(){
   lM.innerHTML='';
   for(let h=0;h<24;h++){
-    const maj=h%6===0,ang=-90+h*15;
+    const maj=h%6===0,ang=h*15; // px() ya coloca 0° arriba
     const ri=maj?R_TIma:R_TImi,ro=maj?R_TOma:R_TOmi;
     const a1=px(ri,ang),a2=px(ro,ang);
     lM.appendChild(svgN('line',{
@@ -407,7 +415,7 @@ function buildWedges(){
   const{min,max}=S.stats;
   S.prices.forEach(({hour,price})=>{
     const r=rat(price,min,max),c=lerp(r);
-    const s=-90+hour*15+GAP/2,e=s+WDEG;
+    const s=hour*15+GAP/2,e=s+WDEG;
     const rO=R_MIN+r*(R_MAX-R_MIN);
     lW.appendChild(svgN('path',{
       d:wPath(R_IN,rO,s,e),
@@ -447,7 +455,6 @@ function attachEvents(){
       h.addEventListener('mouseleave',()=>{ttD.style.display='none';});
     }
   });
-  if(TOUCH) document.addEventListener('touchstart',onOut,{passive:true});
 }
 function onTouch(e){
   e.preventDefault();e.stopPropagation();
@@ -489,7 +496,9 @@ function hideMob(){
 function updatePanel(){
   if(!S.prices||!S.stats)return;
   const n=madridNow();
-  const ds=n.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  const isTmr=!!S.tomorrow&&S.prices===S.tomorrow.prices;
+  const shown=new Date(n.getFullYear(),n.getMonth(),n.getDate()+(isTmr?1:0));
+  const ds=shown.toLocaleDateString('es-ES',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   pDate.innerHTML=`<span class="dtx">${ds[0].toUpperCase()+ds.slice(1)}</span>`;
 
   const ch=S.prices[S.stats.cheapIdx];
@@ -535,26 +544,46 @@ function handsVisible(v){
 }
 
 /* ── MODE ────────────────────────────────────────────────────── */
-function setMode(m){
+function useDay(d){
+  if(!d)return;
+  S.prices=d.prices;S.stats=d.stats;
+  buildWedges();
+}
+async function setMode(m){
   S.mode=m;
   bToday.classList.toggle('on',m==='today');
   bTomr.classList.toggle('on',m==='tomorrow');
+  if(TOUCH){S.active=null;hideMob();}
+  ttD.style.display='none';
   if(m==='tomorrow'){
-    tmrOvl.style.display='flex';
     handsVisible(false);
     clearHL();
+    if(!S.tomorrow){
+      tmrOvl.textContent='Cargando precios de mañana…';
+      tmrOvl.style.display='flex';
+      const t=await loadDay(dayStr(1),false);
+      if(t.prices)S.tomorrow=t;
+      if(S.mode!=='tomorrow')return; // el usuario volvió a "Hoy" mientras cargaba
+    }
+    if(S.tomorrow){
+      tmrOvl.style.display='none';
+      useDay(S.tomorrow);
+    }else{
+      tmrOvl.innerHTML=TMR_MSG;
+      tmrOvl.style.display='flex';
+    }
   }else{
     tmrOvl.style.display='none';
     handsVisible(true);
+    useDay(S.today);
     updateHands();
-    hlNow();
   }
-  if(TOUCH){S.active=null;hideMob();}
   updatePanel();
 }
 
 /* ── TICK ────────────────────────────────────────────────────── */
 function tick(){
+  if(S.loadedDay&&dayStr(0)!==S.loadedDay){location.reload();return;} // cambio de día
   const h=updateHands();
   if(h!==-1&&h!==S.lastH){S.lastH=h;hlNow();updatePanel();}
 }
@@ -569,9 +598,21 @@ async function init(){
   bTomr.addEventListener('click', ()=>setMode('tomorrow'));
   apiWarn.addEventListener('click',()=>apiWarn.classList.toggle('open'));
 
-  S.prices=await loadPrices();
-  S.stats=calcStats(S.prices);
-  buildWedges();
+  if(TOUCH) document.addEventListener('touchstart',onOut,{passive:true});
+
+  const day=dayStr(0);
+  const t=await loadDay(day,true);
+  if(t.prices){
+    S.today=t;
+  }else{
+    console.log('⚠️ Usando datos de ejemplo');
+    $('aw-d').textContent=t.errs.join('\n');
+    apiWarn.style.display='block';
+    const prices=fallback();
+    S.today={prices,stats:calcStats(prices)};
+  }
+  S.loadedDay=day;
+  if(S.mode==='today')useDay(S.today);
   updatePanel();
 }
 
