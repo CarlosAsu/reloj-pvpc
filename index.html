@@ -45,7 +45,10 @@ body{display:flex;flex-direction:column;align-items:center;padding:16px 12px 0}
 
 #api-warn{display:none;background:rgba(234,179,8,.12);border:1px solid rgba(234,179,8,.3);
   color:rgb(234,179,8);font-size:12px;font-weight:500;padding:6px 16px;
-  border-radius:20px;letter-spacing:.02em}
+  border-radius:14px;letter-spacing:.02em;cursor:pointer;text-align:center;max-width:100%}
+#aw-d{display:none;margin-top:6px;font-size:11px;font-weight:400;text-align:left;
+  white-space:pre-line;word-break:break-word;color:rgba(234,179,8,.85)}
+#api-warn.open #aw-d{display:block}
 
 .cw{position:relative;width:var(--sz);height:var(--sz);flex-shrink:0}
 #svg{width:100%;height:100%;display:block;touch-action:none;
@@ -120,7 +123,7 @@ body{display:flex;flex-direction:column;align-items:center;padding:16px 12px 0}
 </head>
 <body>
 <div id="app">
-  <div id="api-warn">⚠️ Mostrando datos de ejemplo</div>
+  <div id="api-warn" title="Pulsa para ver el detalle">⚠️ Mostrando datos de ejemplo · ver detalle<div id="aw-d"></div></div>
 
   <div class="cw">
     <svg id="svg" viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg">
@@ -220,16 +223,21 @@ const STOPS=[
   [1,   [239,68,68]],
 ];
 
-// API + 4 proxy strategies (different services for resilience)
-const APIURL='https://api.preciodelaluz.org/v1/prices/all?zone=PCB';
-const ENC=encodeURIComponent(APIURL);
-const SOURCES=[
-  ()=> jFetch(APIURL),
-  ()=> jFetch(`https://api.allorigins.win/raw?url=${ENC}`),
-  ()=> jFetch(`https://corsproxy.io/?url=${ENC}`),
-  ()=> jFetch(`https://thingproxy.freeboard.io/fetch/${APIURL}`),
-  ()=> jFetch(`https://api.codetabs.com/v1/proxy?quest=${APIURL}`),
-];
+// Fuente: API oficial REData de Red Eléctrica (pública, sin token).
+// Se intenta directa y, si el navegador la bloquea, a través de proxies CORS.
+function reeUrl(day){
+  return 'https://apidatos.ree.es/es/datos/mercados/precios-mercados-tiempo-real'
+    +`?start_date=${day}T00:00&end_date=${day}T23:59&time_trunc=hour`;
+}
+function sources(day){
+  const u=reeUrl(day), e=encodeURIComponent(u);
+  return [
+    ['REE directa',        u],
+    ['REE vía allorigins', `https://api.allorigins.win/raw?url=${e}`],
+    ['REE vía corsproxy',  `https://corsproxy.io/?url=${e}`],
+    ['REE vía codetabs',   `https://api.codetabs.com/v1/proxy?quest=${e}`],
+  ];
+}
 
 /* ── STATE ───────────────────────────────────────────────────── */
 const S={prices:null,stats:null,mode:'today',active:null,lastH:-1};
@@ -302,29 +310,46 @@ function jFetch(url){
 }
 
 async function loadPrices(){
-  for(let i=0;i<SOURCES.length;i++){
+  const n=madridNow();
+  const day=`${n.getFullYear()}-${pad(n.getMonth()+1)}-${pad(n.getDate())}`;
+  const errs=[];
+  for(const [name,url] of sources(day)){
     try{
-      const d=await SOURCES[i]();
-      // basic sanity check — must have at least 20 keys
-      if(typeof d!=='object'||Object.keys(d).length<20) throw new Error('bad data');
-      console.log(`✅ Datos cargados (fuente ${i+1})`);
-      return parseApi(d);
+      const prices=parseRee(await jFetch(url));
+      console.log(`✅ Datos cargados: ${name}`);
+      return prices;
     }catch(e){
-      console.log(`❌ Fuente ${i+1} fallida:`,e.message);
+      console.log(`❌ ${name}:`,e.message);
+      errs.push(`${name}: ${e.message}`);
     }
   }
   console.log('⚠️ Usando datos de ejemplo');
+  $('aw-d').textContent=errs.join('\n');
   apiWarn.style.display='block';
   return fallback();
 }
 
-function parseApi(data){
-  return Array.from({length:24},(_,h)=>{
-    const k=`${pad(h)}-${pad(h+1)}`;
-    const k2=`${h}-${h+1}`;
-    const e=data[k]||data[k2]||null;
-    return{hour:h,price:e?e.price/1000:0.1};
-  });
+// Respuesta REData: included[] trae una serie por indicador; PVPC es el id 1001.
+// Cada valor: {value: €/MWh, datetime: "2026-11-11T00:00:00.000+01:00"} en hora peninsular.
+function parseRee(data){
+  if(data&&data.errors&&data.errors.length)
+    throw new Error(data.errors[0].detail||data.errors[0].title||'error de la API');
+  const inc=(data&&data.included)||[];
+  const serie=inc.find(x=>String(x.id)==='1001')
+    ||inc.find(x=>/pvpc/i.test(`${x.type||''} ${(x.attributes||{}).title||''}`));
+  if(!serie) throw new Error('respuesta sin serie PVPC');
+  const sum=Array(24).fill(0), cnt=Array(24).fill(0);
+  for(const v of (serie.attributes||{}).values||[]){
+    const h=parseInt(String(v.datetime).slice(11,13),10);
+    if(h>=0&&h<24&&typeof v.value==='number'){sum[h]+=v.value;cnt[h]++;}
+  }
+  const have=cnt.filter(c=>c>0).length;
+  if(have<20) throw new Error(`solo ${have} horas publicadas`);
+  // Media por hora (cubre datos cuartohorarios y la hora repetida del cambio de hora)
+  const p=sum.map((s,h)=>cnt[h]?s/cnt[h]/1000:null);
+  // Hora inexistente (cambio de hora de marzo): se copia la vecina
+  for(let h=0;h<24;h++) if(p[h]===null) p[h]=h>0?p[h-1]:p.find(x=>x!==null);
+  return p.map((price,hour)=>({hour,price}));
 }
 
 function fallback(){
@@ -542,6 +567,7 @@ async function init(){
 
   bToday.addEventListener('click',()=>setMode('today'));
   bTomr.addEventListener('click', ()=>setMode('tomorrow'));
+  apiWarn.addEventListener('click',()=>apiWarn.classList.toggle('open'));
 
   S.prices=await loadPrices();
   S.stats=calcStats(S.prices);
